@@ -24,6 +24,8 @@ function Board() {
   self.board_height = 8;
   self.empty_space = '0';
   self.board_div = typeof jQuery != 'undefined' ? $('#board') : null;
+  self.turns_with_only_kings = 0;
+  self.turns_with_only_kings_threshold = 100;
   
   self.player_one = new Player('b', self.down);
   self.player_two = new Player('w', self.up);
@@ -52,6 +54,7 @@ function Board() {
   self.CheckWinner = function() {
     let found_player_one = false;
     let found_player_two = false;
+    let only_kings = true;
     
     for (let i = 0; i < this.board_height; ++i) {
       for (let j = 0; j < this.board_width; ++j) {
@@ -61,10 +64,16 @@ function Board() {
         if (!found_player_two) {
           found_player_two = this.board_state[i][j].toLowerCase() == this.player_two.symbol;
         }
+        only_kings = only_kings && (this.board_state[i][j] == this.empty_space || this.board_state[i][j] == this.player_one.symbol.toUpperCase() || this.board_state[i][j] == this.player_two.symbol.toUpperCase());
       }
     }
     
-    return found_player_one && found_player_two ? '' : 
+    if (only_kings) {
+      this.turns_with_only_kings += 1;
+    }
+    
+    return this.turns_with_only_kings > this.turns_with_only_kings_threshold ? 'DRAW' :
+           found_player_one && found_player_two ? '' : 
            !found_player_one && found_player_two ? this.player_two.symbol :
            this.player_one.symbol;
   };
@@ -126,7 +135,7 @@ function Board() {
               valid_moves.push(new Move([i,j], diag, null));
             }
             else if (this.IsMoveInBounds(diag)) {
-              diag_jump_symbol = this.board_state[diag[0]][diag[1]];
+              diag_jump_symbol = this.board_state[diag[0]][diag[1]].toLowerCase();
               if (diag_jump_symbol != this.empty_space && diag_jump_symbol != player.symbol) {
                 diag_jump = [i+2*checks[k][0],j+2*checks[k][1]];
                 if (this.IsMoveValid(diag_jump)) {
@@ -226,10 +235,10 @@ function Board() {
     }
 
     if (this.CheckWinner() == '') {
-      setTimeout(function() { self.AutoNextMove(); }, 1500);
+      setTimeout(function() { self.AutoNextMove(); }, 0);
     }
     else {
-      console.log(this.CheckWinner());
+      $('#result').text(this.CheckWinner());
     }
   };
 }
