@@ -56,10 +56,10 @@ function Board() {
     for (let i = 0; i < this.board_height; ++i) {
       for (let j = 0; j < this.board_width; ++j) {
         if (!found_player_one) {
-          found_player_one = this.board_state[i][j] == this.player_one.symbol;
+          found_player_one = this.board_state[i][j].toLowerCase() == this.player_one.symbol;
         }
-        else if (!found_player_two) {
-          found_player_two = this.board_state[i][j] == this.player_two.symbol;
+        if (!found_player_two) {
+          found_player_two = this.board_state[i][j].toLowerCase() == this.player_two.symbol;
         }
       }
     }
@@ -82,6 +82,7 @@ function Board() {
     }
   };
   
+  // Make sure the potential move is on the board at all.
   self.IsMoveInBounds = function(to) {
     if (to[0] >= this.board_height || to[0] < 0) {
       return false;
@@ -94,6 +95,7 @@ function Board() {
     }
   };
   
+  // Check if something can move to the given cell.
   self.IsMoveValid = function(to) {
     return this.IsMoveInBounds(to) && this.board_state[to[0]][to[1]] == this.empty_space;
   };
@@ -107,36 +109,29 @@ function Board() {
         if (this.board_state[i][j] == self.empty_space) {
           // Do nothing as there is nothing here.
         }
-        else if (this.board_state[i][j] == player.symbol){
-          // To the Right Diag
-          right_diag = [i+player.direction, j+1];
-          if (this.IsMoveValid(right_diag)) {
-            valid_moves.push(new Move([i,j], right_diag, null));
-          }
-          // To the Left Diag
-          left_diag = [i+player.direction, j-1];
-          if (this.IsMoveValid(left_diag)) {
-            valid_moves.push(new Move([i,j], left_diag, null));
+        else if (this.board_state[i][j].toLowerCase() == player.symbol){
+          let checks = [
+            [player.direction, 1],
+            [player.direction, -1]
+          ];
+          // Add the KING movements.
+          if (this.board_state[i][j] == player.symbol.toUpperCase()) {
+            checks.push([-1 * player.direction, 1]);
+            checks.push([-1 * player.direction, -1]);
           }
           
-          // Jump the right diag opponent.
-          if (this.IsMoveInBounds(right_diag)) {
-            right_diag_symbol = this.board_state[right_diag[0]][right_diag[1]];
-            if (right_diag_symbol != this.empty_space && right_diag_symbol != player.symbol) {
-              right_jump_diag = [i+2*player.direction,j+2];
-              if (this.IsMoveValid(right_jump_diag)) {
-                valid_moves.push(new Move([i,j], right_jump_diag, right_diag));
-              }
+          for (let k = 0; k < checks.length; ++k) {
+            diag = [i+checks[k][0], j+checks[k][1]];
+            if (this.IsMoveValid(diag)) {
+              valid_moves.push(new Move([i,j], diag, null));
             }
-          }
-          
-          // Jump the left diag oppoent.
-          if (this.IsMoveInBounds(left_diag)) {
-            left_diag_symbol = this.board_state[left_diag[0]][left_diag[1]];
-            if (left_diag_symbol != this.empty_space && left_diag_symbol != player.symbol) {
-              left_jump_diag = [i+2*player.direction,j-2];
-              if (this.IsMoveValid(left_jump_diag)) {
-                valid_moves.push(new Move([i,j], left_jump_diag, left_diag));
+            else if (this.IsMoveInBounds(diag)) {
+              diag_jump_symbol = this.board_state[diag[0]][diag[1]];
+              if (diag_jump_symbol != this.empty_space && diag_jump_symbol != player.symbol) {
+                diag_jump = [i+2*checks[k][0],j+2*checks[k][1]];
+                if (this.IsMoveValid(diag_jump)) {
+                  valid_moves.push(new Move([i,j], diag_jump, diag));
+                }
               }
             }
           }
@@ -144,6 +139,7 @@ function Board() {
       }
     }
     
+    // Jump moves are required to be taken first.
     var jump_moves = valid_moves.filter(m => {return m.removes != null});
     if (jump_moves.length > 0) {
       return jump_moves
@@ -153,12 +149,14 @@ function Board() {
     }
   };
   
-  self.MakeMove = function(player, move) {
+  // Execute the given move. The player is to determine the new cells symbol.
+  self.MakeMove = function(move) {
+    let from_symbol = this.board_state[move.from[0]][move.from[1]];
     if (this.debug) {
-      console.log("Moving " + player.symbol + " from " + move.from + " to " + move.to + ".");
+      console.log("Moving " + from_symbol + " from " + move.from + " to " + move.to + ".");
     }
     this.board_state[move.from[0]][move.from[1]] = this.empty_space;
-    this.board_state[move.to[0]][move.to[1]] = player.symbol;
+    this.board_state[move.to[0]][move.to[1]] = from_symbol;
     if (move.removes != null) {
       if (this.debug) {
         console.log("Removing " + this.board_state[move.removes[0]][move.removes[1]] + " from " + move.removes + ".");
@@ -167,6 +165,7 @@ function Board() {
     }
   };
   
+  // Draw the board state onto the DOM.
   self.Draw = function() {
     if (self.board_div == null || self.board_div.length == 0) {
       return;
@@ -203,7 +202,7 @@ function Board() {
   self.AutoNextMove = function() {
     let player_one_moves = this.FindValidMoves(this.player_one);
     if (player_one_moves.length > 0) {
-      this.MakeMove(this.player_one, player_one_moves[getRandomInt(player_one_moves.length)]);
+      this.MakeMove(player_one_moves[getRandomInt(player_one_moves.length)]);
     }
 
     this.CheckForKings();
@@ -215,7 +214,7 @@ function Board() {
 
     let player_two_moves = this.FindValidMoves(this.player_two);
     if (player_two_moves.length > 0) {
-      this.MakeMove(this.player_two, player_two_moves[getRandomInt(player_two_moves.length)]);
+      this.MakeMove(player_two_moves[getRandomInt(player_two_moves.length)]);
     }
 
     this.CheckForKings();
