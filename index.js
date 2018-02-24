@@ -12,7 +12,7 @@ function Player(symbol, direction) {
 function Move(from, to, removes) {
   this.from = from;
   this.to = to;
-  this.removes = removes;
+  this.removes = removes || null;
 }
 
 function Board() {
@@ -82,15 +82,20 @@ function Board() {
     }
   };
   
-  self.IsMoveValid = function(to) {
+  self.IsMoveInBounds = function(to) {
     if (to[0] >= this.board_height || to[0] < 0) {
       return false;
     }
     else if (to[1] >= this.board_width || to[1] < 0) {
       return false;
     }
-    
-    return this.board_state[to[0]][to[1]] == this.empty_space;
+    else {
+      return true;
+    }
+  };
+  
+  self.IsMoveValid = function(to) {
+    return this.IsMoveInBounds(to) && this.board_state[to[0]][to[1]] == this.empty_space;
   };
   
   // Find all valid moves for the user.
@@ -115,20 +120,24 @@ function Board() {
           }
           
           // Jump the right diag opponent.
-          right_diag_symbol = this.board_state[right_diag[0]][right_diag[1]];
-          if (right_diag_symbol != this.empty_space && right_diag_symbol != player.symbol) {
-            right_jump_diag = [i+2*player.direction,j+2];
-            if (this.IsMoveValid(right_jump_diag)) {
-              valid_moves.push(new Move([i,j], right_jump_diag, right_diag));
+          if (this.IsMoveInBounds(right_diag)) {
+            right_diag_symbol = this.board_state[right_diag[0]][right_diag[1]];
+            if (right_diag_symbol != this.empty_space && right_diag_symbol != player.symbol) {
+              right_jump_diag = [i+2*player.direction,j+2];
+              if (this.IsMoveValid(right_jump_diag)) {
+                valid_moves.push(new Move([i,j], right_jump_diag, right_diag));
+              }
             }
           }
           
           // Jump the left diag oppoent.
-          left_diag_symbol = this.board_state[left_diag[0]][left_diag[1]];
-          if (left_diag_symbol != this.empty_space && left_diag_symbol != player.symbol) {
-            left_jump_diag = [i+2*player.direction,j+2];
-            if (this.IsMoveValid(left_jump_diag)) {
-              valid_moves.push(new Move([i,j], left_jump_diag, left_diag));
+          if (this.IsMoveInBounds(left_diag)) {
+            left_diag_symbol = this.board_state[left_diag[0]][left_diag[1]];
+            if (left_diag_symbol != this.empty_space && left_diag_symbol != player.symbol) {
+              left_jump_diag = [i+2*player.direction,j-2];
+              if (this.IsMoveValid(left_jump_diag)) {
+                valid_moves.push(new Move([i,j], left_jump_diag, left_diag));
+              }
             }
           }
         }
@@ -150,7 +159,7 @@ function Board() {
     }
     this.board_state[move.from[0]][move.from[1]] = this.empty_space;
     this.board_state[move.to[0]][move.to[1]] = player.symbol;
-    if (move.removes) {
+    if (move.removes != null) {
       if (this.debug) {
         console.log("Removing " + this.board_state[move.removes[0]][move.removes[1]] + " from " + move.removes + ".");
       }
@@ -230,4 +239,3 @@ var b = new Board();
 b.debug = true;
 b.Print();
 b.AutoNextMove();
-console.log('Winner: ' + b.CheckWinner());
