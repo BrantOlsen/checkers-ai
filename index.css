@@ -1,0 +1,17 @@
+.cell {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border: 1px solid green;
+  background-color: gray;
+}
+
+.white {
+  background-color: white;
+  color: black;
+}
+
+.black {
+  background-color: black;
+  color: white;
+}

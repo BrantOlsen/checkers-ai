@@ -9,6 +9,12 @@ function Player(symbol, direction) {
   this.direction = direction;
 }
 
+function Move(from, to, removes) {
+  this.from = from;
+  this.to = to;
+  this.removes = removes;
+}
+
 function Board() {
   let self = this;
   self.debug = false;
@@ -71,7 +77,7 @@ function Board() {
         this.board_state[0][i] = this.player_two.symbol.toUpperCase();
       }
       if (this.board_state[this.board_height - 1][i] == this.player_one.symbol) {
-        this.board_state[0][i] = this.player_one.symbol.toUpperCase();
+        this.board_state[this.board_height - 1][i] = this.player_one.symbol.toUpperCase();
       }
     }
   };
@@ -100,26 +106,56 @@ function Board() {
           // To the Right Diag
           right_diag = [i+player.direction, j+1];
           if (this.IsMoveValid(right_diag)) {
-            valid_moves.push({from:[i,j], to:right_diag});
+            valid_moves.push(new Move([i,j], right_diag, null));
           }
           // To the Left Diag
           left_diag = [i+player.direction, j-1];
           if (this.IsMoveValid(left_diag)) {
-            valid_moves.push({from:[i,j], to:right_diag});
+            valid_moves.push(new Move([i,j], left_diag, null));
+          }
+          
+          // Jump the right diag opponent.
+          right_diag_symbol = this.board_state[right_diag[0]][right_diag[1]];
+          if (right_diag_symbol != this.empty_space && right_diag_symbol != player.symbol) {
+            right_jump_diag = [i+2*player.direction,j+2];
+            if (this.IsMoveValid(right_jump_diag)) {
+              valid_moves.push(new Move([i,j], right_jump_diag, right_diag));
+            }
+          }
+          
+          // Jump the left diag oppoent.
+          left_diag_symbol = this.board_state[left_diag[0]][left_diag[1]];
+          if (left_diag_symbol != this.empty_space && left_diag_symbol != player.symbol) {
+            left_jump_diag = [i+2*player.direction,j+2];
+            if (this.IsMoveValid(left_jump_diag)) {
+              valid_moves.push(new Move([i,j], left_jump_diag, left_diag));
+            }
           }
         }
       }
     }
     
-    return valid_moves;
+    var jump_moves = valid_moves.filter(m => {return m.removes != null});
+    if (jump_moves.length > 0) {
+      return jump_moves
+    }
+    else {
+      return valid_moves;
+    }
   };
   
-  self.MakeMove = function(player, from_to) {
+  self.MakeMove = function(player, move) {
     if (this.debug) {
-      console.log("Moving " + player.symbol + " from " + from_to.from + " to " + from_to.to + ".");
+      console.log("Moving " + player.symbol + " from " + move.from + " to " + move.to + ".");
     }
-    this.board_state[from_to.from[0]][from_to.from[1]] = self.empty_space ;
-    this.board_state[from_to.to[0]][from_to.to[1]] = player.symbol;
+    this.board_state[move.from[0]][move.from[1]] = this.empty_space;
+    this.board_state[move.to[0]][move.to[1]] = player.symbol;
+    if (move.removes) {
+      if (this.debug) {
+        console.log("Removing " + this.board_state[move.removes[0]][move.removes[1]] + " from " + move.removes + ".");
+      }
+      this.board_state[move.removes[0]][move.removes[1]] = this.empty_space;
+    }
   };
   
   self.Draw = function() {
@@ -137,11 +173,19 @@ function Board() {
       }
     }
     
+    let white_count = 0;
+    let black_count = 0;
     for (let i = 0; i < this.board_height; ++i) {
       for (let j = 0; j < this.board_width; ++j) {
+        white_count += this.board_state[i][j].toLowerCase() == this.player_two.symbol.toLowerCase() ? 1 : 0;
+        black_count += this.board_state[i][j].toLowerCase() == this.player_one.symbol.toLowerCase() ? 1 : 0;
+       
         self.board_div.find('#' + i + "_" + j).css('background-color', this.board_state[i][j] == this.player_one.symbol ? 'black' : this.board_state[i][j] == this.player_two.symbol ? 'white' : 'gray')
       }
     }
+    
+    $('#black-score').text(black_count);
+    $('#white-score').text(white_count);
   };
   
   self.AutoNextMove = function() {
@@ -162,7 +206,7 @@ function Board() {
     }
     this.Draw();
     if (this.CheckWinner() == '') {
-      setTimeout(function() { self.AutoNextMove(); }, 500);
+      setTimeout(function() { self.AutoNextMove(); }, 1500);
     }
     else {
       console.log(this.CheckWinner());
