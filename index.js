@@ -168,7 +168,7 @@ function Board() {
       for (let i = 0; i < this.board_height; ++i) {
         let $row = $('<div></div>').appendTo(self.board_div);
         for (let j = 0; j < this.board_width; ++j) {
-          $row.append('<div id="' + i + "_" + j + '" style="display: inline-block; width: 40px; height: 40px; border: 1px solid green"></div>');
+          $row.append('<div id="' + i + "_" + j + '" class="cell"></div>');
         }
       }
     }
@@ -180,7 +180,10 @@ function Board() {
         white_count += this.board_state[i][j].toLowerCase() == this.player_two.symbol.toLowerCase() ? 1 : 0;
         black_count += this.board_state[i][j].toLowerCase() == this.player_one.symbol.toLowerCase() ? 1 : 0;
        
-        self.board_div.find('#' + i + "_" + j).css('background-color', this.board_state[i][j] == this.player_one.symbol ? 'black' : this.board_state[i][j] == this.player_two.symbol ? 'white' : 'gray')
+        self.board_div.find('#' + i + "_" + j)
+          .toggleClass('black', this.board_state[i][j].toLowerCase() == this.player_one.symbol)
+          .toggleClass('white', this.board_state[i][j].toLowerCase() == this.player_two.symbol)
+          .html(this.player_one.symbol.toUpperCase() == this.board_state[i][j] || this.player_two.symbol.toUpperCase() == this.board_state[i][j] ? "K" : "&nbsp;");
       }
     }
     
@@ -194,17 +197,26 @@ function Board() {
       this.MakeMove(this.player_one, player_one_moves[getRandomInt(player_one_moves.length)]);
     }
 
+    this.CheckForKings();
+    this.Draw();
+    if (this.debug) {
+      console.log('');
+      this.Print();
+    }
+
     let player_two_moves = this.FindValidMoves(this.player_two);
     if (player_two_moves.length > 0) {
       this.MakeMove(this.player_two, player_two_moves[getRandomInt(player_two_moves.length)]);
     }
 
     this.CheckForKings();
+    this.Draw();
+
     if (this.debug) {
       console.log('');
       this.Print();
     }
-    this.Draw();
+
     if (this.CheckWinner() == '') {
       setTimeout(function() { self.AutoNextMove(); }, 1500);
     }
