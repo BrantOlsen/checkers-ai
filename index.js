@@ -17,6 +17,7 @@ function Board() {
   self.board_width = 8;
   self.board_height = 8;
   self.empty_space = '0';
+  self.board_div = typeof jQuery != 'undefined' ? $('#board') : null;
   
   self.player_one = new Player('b', self.down);
   self.player_two = new Player('w', self.up);
@@ -75,6 +76,18 @@ function Board() {
     }
   };
   
+  self.IsMoveValid = function(to) {
+    if (to[0] >= this.board_height || to[0] < 0) {
+      return false;
+    }
+    else if (to[1] >= this.board_width || to[1] < 0) {
+      return false;
+    }
+    
+    return this.board_state[to[0]][to[1]] == this.empty_space;
+  };
+  
+  // Find all valid moves for the user.
   self.FindValidMoves = function(player) {
     let valid_moves = [];
     
@@ -85,12 +98,14 @@ function Board() {
         }
         else if (this.board_state[i][j] == player.symbol){
           // To the Right Diag
-          if (i < this.board_height+player.direction && this.board_state[i+player.direction][j+1] == this.empty_space) {
-            valid_moves.push({from:[i,j], to:[i+player.direction,j+1]});
+          right_diag = [i+player.direction, j+1];
+          if (this.IsMoveValid(right_diag)) {
+            valid_moves.push({from:[i,j], to:right_diag});
           }
           // To the Left Diag
-          if (i < this.board_height+player.direction && this.board_state[i+player.direction][j-1] == this.empty_space) {
-            valid_moves.push({from:[i,j], to:[i+player.direction,j-1]});            
+          left_diag = [i+player.direction, j-1];
+          if (this.IsMoveValid(left_diag)) {
+            valid_moves.push({from:[i,j], to:right_diag});
           }
         }
       }
@@ -107,31 +122,56 @@ function Board() {
     this.board_state[from_to.to[0]][from_to.to[1]] = player.symbol;
   };
   
-  // Start the game.
-  self.Start = function() {
-    i =0;
-    while (this.CheckWinner() == '' && i < 20) {
-      ++i;
-      let player_one_moves = this.FindValidMoves(this.player_one);
-      this.MakeMove(this.player_one, player_one_moves[getRandomInt(player_one_moves.length)]);
-
-      let player_two_moves = this.FindValidMoves(this.player_two);
-      this.MakeMove(this.player_two, player_two_moves[getRandomInt(player_two_moves.length)]);
-      
-      this.CheckForKings();
-      
-      if (this.debug) {
-        console.log('');
-        this.Print();
+  self.Draw = function() {
+    if (self.board_div == null || self.board_div.length == 0) {
+      return;
+    }
+    
+    // Init the divs.
+    if (self.board_div.children().length == 0) {
+      for (let i = 0; i < this.board_height; ++i) {
+        let $row = $('<div></div>').appendTo(self.board_div);
+        for (let j = 0; j < this.board_width; ++j) {
+          $row.append('<div id="' + i + "_" + j + '" style="display: inline-block; width: 40px; height: 40px; border: 1px solid green"></div>');
+        }
       }
     }
     
-    console.log(this.CheckWinner());
+    for (let i = 0; i < this.board_height; ++i) {
+      for (let j = 0; j < this.board_width; ++j) {
+        self.board_div.find('#' + i + "_" + j).css('background-color', this.board_state[i][j] == this.player_one.symbol ? 'black' : this.board_state[i][j] == this.player_two.symbol ? 'white' : 'gray')
+      }
+    }
+  };
+  
+  self.AutoNextMove = function() {
+    let player_one_moves = this.FindValidMoves(this.player_one);
+    if (player_one_moves.length > 0) {
+      this.MakeMove(this.player_one, player_one_moves[getRandomInt(player_one_moves.length)]);
+    }
+
+    let player_two_moves = this.FindValidMoves(this.player_two);
+    if (player_two_moves.length > 0) {
+      this.MakeMove(this.player_two, player_two_moves[getRandomInt(player_two_moves.length)]);
+    }
+
+    this.CheckForKings();
+    if (this.debug) {
+      console.log('');
+      this.Print();
+    }
+    this.Draw();
+    if (this.CheckWinner() == '') {
+      setTimeout(function() { self.AutoNextMove(); }, 500);
+    }
+    else {
+      console.log(this.CheckWinner());
+    }
   };
 }
 
 var b = new Board();
 b.debug = true;
 b.Print();
-b.Start();
+b.AutoNextMove();
 console.log('Winner: ' + b.CheckWinner());
