@@ -1,5 +1,9 @@
 console.log("Hello World")
 
+function IsWebPage() {
+  return typeof jQuery != 'undefined';
+}
+
 function getRandomInt(max) {
   return Math.floor(Math.random() * Math.floor(max));
 }
@@ -7,6 +11,14 @@ function getRandomInt(max) {
 function Player(symbol, direction) {
   this.symbol = symbol;
   this.direction = direction;
+  
+  this.SelectMove = function(valid_moves) {
+    if (valid_moves.length == 0) {
+      return null;
+    }
+    
+    return valid_moves[getRandomInt(valid_moves.length)]
+  };
 }
 
 function Move(from, to, removes) {
@@ -16,83 +28,32 @@ function Move(from, to, removes) {
 }
 
 function Board() {
-  let self = this;
-  self.debug = false;
-  self.down = 1;
-  self.up = -1;
-  self.board_width = 8;
-  self.board_height = 8;
-  self.empty_space = '0';
-  self.board_div = typeof jQuery != 'undefined' ? $('#board') : null;
-  self.turns_with_only_kings = 0;
-  self.turns_with_only_kings_threshold = 100;
+  this.board_width = 8;
+  this.board_height = 8;
+  this.board_div = IsWebPage() ? $('#board') : null;
+  this.board_state = [];
+  this.empty_space = '0';
   
-  self.player_one = new Player('b', self.down);
-  self.player_two = new Player('w', self.up);
-  self.board_state = [];
-  for (let i = 0; i < self.board_height; ++i) {
-    self.board_state.push([]);
-    for (let j = 0; j < self.board_width; ++j) {
-      if (i < 2) {
-        self.board_state[i].push(self.player_one.symbol);
-      }
-      else if (i > 5) {
-        self.board_state[i].push(self.player_two.symbol);
-      }
-      else {
-        self.board_state[i].push(self.empty_space);
-      }
-    }
-  }
-  
-  // Print the current board state.
-  self.Print = function () {
-    console.log(this.board_state);
-  };
-  
-  // Check if there is a winner on the board.
-  self.CheckWinner = function() {
-    let found_player_one = false;
-    let found_player_two = false;
-    let only_kings = true;
-    
+  // Init the board with player one and player two pieces.
+  this.Init = function (player_one, player_two) {
     for (let i = 0; i < this.board_height; ++i) {
+      this.board_state.push([]);
       for (let j = 0; j < this.board_width; ++j) {
-        if (!found_player_one) {
-          found_player_one = this.board_state[i][j].toLowerCase() == this.player_one.symbol;
+        if (i < 2) {
+          this.board_state[i].push(player_one.symbol);
         }
-        if (!found_player_two) {
-          found_player_two = this.board_state[i][j].toLowerCase() == this.player_two.symbol;
+        else if (i > 5) {
+          this.board_state[i].push(player_two.symbol);
         }
-        only_kings = only_kings && (this.board_state[i][j] == this.empty_space || this.board_state[i][j] == this.player_one.symbol.toUpperCase() || this.board_state[i][j] == this.player_two.symbol.toUpperCase());
-      }
-    }
-    
-    if (only_kings) {
-      this.turns_with_only_kings += 1;
-    }
-    
-    return this.turns_with_only_kings > this.turns_with_only_kings_threshold ? 'DRAW' :
-           found_player_one && found_player_two ? '' : 
-           !found_player_one && found_player_two ? this.player_two.symbol :
-           this.player_one.symbol;
-  };
-  
-  // Check if either player has peices on the opposite side of the map and turn them
-  // into KINGs.
-  self.CheckForKings = function() {
-    for (let i = 0; i < this.board_width; ++i) {
-      if (this.board_state[0][i] == this.player_two.symbol) {
-        this.board_state[0][i] = this.player_two.symbol.toUpperCase();
-      }
-      if (this.board_state[this.board_height - 1][i] == this.player_one.symbol) {
-        this.board_state[this.board_height - 1][i] = this.player_one.symbol.toUpperCase();
+        else {
+          this.board_state[i].push(this.empty_space);
+        }
       }
     }
   };
   
   // Make sure the potential move is on the board at all.
-  self.IsMoveInBounds = function(to) {
+  this.IsMoveInBounds = function(to) {
     if (to[0] >= this.board_height || to[0] < 0) {
       return false;
     }
@@ -105,17 +66,18 @@ function Board() {
   };
   
   // Check if something can move to the given cell.
-  self.IsMoveValid = function(to) {
+  this.IsMoveValid = function(to) {
     return this.IsMoveInBounds(to) && this.board_state[to[0]][to[1]] == this.empty_space;
   };
   
+  
   // Find all valid moves for the user.
-  self.FindValidMoves = function(player) {
+  this.FindValidMoves = function(player) {
     let valid_moves = [];
     
     for (let i = 0; i < this.board_height; ++i) {
       for (let j = 0; j < this.board_width; ++j) {
-        if (this.board_state[i][j] == self.empty_space) {
+        if (this.board_state[i][j] == this.empty_space) {
           // Do nothing as there is nothing here.
         }
         else if (this.board_state[i][j].toLowerCase() == player.symbol){
@@ -159,7 +121,7 @@ function Board() {
   };
   
   // Execute the given move. The player is to determine the new cells symbol.
-  self.MakeMove = function(move) {
+  this.MakeMove = function(move) {
     let from_symbol = this.board_state[move.from[0]][move.from[1]];
     if (this.debug) {
       console.log("Moving " + from_symbol + " from " + move.from + " to " + move.to + ".");
@@ -175,15 +137,15 @@ function Board() {
   };
   
   // Draw the board state onto the DOM.
-  self.Draw = function() {
-    if (self.board_div == null || self.board_div.length == 0) {
+  this.Draw = function(player_one, player_two) {
+    if (this.board_div == null || this.board_div.length == 0) {
       return;
     }
     
     // Init the divs.
-    if (self.board_div.children().length == 0) {
+    if (this.board_div.children().length == 0) {
       for (let i = 0; i < this.board_height; ++i) {
-        let $row = $('<div></div>').appendTo(self.board_div);
+        let $row = $('<div></div>').appendTo(this.board_div);
         for (let j = 0; j < this.board_width; ++j) {
           $row.append('<div id="' + i + "_" + j + '" class="cell"></div>');
         }
@@ -194,56 +156,142 @@ function Board() {
     let black_count = 0;
     for (let i = 0; i < this.board_height; ++i) {
       for (let j = 0; j < this.board_width; ++j) {
-        white_count += this.board_state[i][j].toLowerCase() == this.player_two.symbol.toLowerCase() ? 1 : 0;
-        black_count += this.board_state[i][j].toLowerCase() == this.player_one.symbol.toLowerCase() ? 1 : 0;
+        white_count += this.board_state[i][j].toLowerCase() == player_two.symbol.toLowerCase() ? 1 : 0;
+        black_count += this.board_state[i][j].toLowerCase() == player_one.symbol.toLowerCase() ? 1 : 0;
        
-        self.board_div.find('#' + i + "_" + j)
-          .toggleClass('black', this.board_state[i][j].toLowerCase() == this.player_one.symbol)
-          .toggleClass('white', this.board_state[i][j].toLowerCase() == this.player_two.symbol)
-          .html(this.player_one.symbol.toUpperCase() == this.board_state[i][j] || this.player_two.symbol.toUpperCase() == this.board_state[i][j] ? "K" : "&nbsp;");
+        this.board_div.find('#' + i + "_" + j)
+          .toggleClass('black', this.board_state[i][j].toLowerCase() == player_one.symbol)
+          .toggleClass('white', this.board_state[i][j].toLowerCase() == player_two.symbol)
+          .html(player_one.symbol.toUpperCase() == this.board_state[i][j] || player_two.symbol.toUpperCase() == this.board_state[i][j] ? "K" : "&nbsp;");
       }
     }
     
     $('#black-score').text(black_count);
     $('#white-score').text(white_count);
   };
+}
+
+function Game() {
+  this.debug = false;
+  this.down = 1;
+  this.up = -1;
+  this.turns_with_only_kings = 0;
+  this.turns_with_only_kings_threshold = 100;
+  this.player_one = new Player('b', this.down);
+  this.player_two = new Player('w', this.up);
+  this.board = new Board();
+  this.board.Init(this.player_one, this.player_two);
   
-  self.AutoNextMove = function() {
-    let player_one_moves = this.FindValidMoves(this.player_one);
+  // Print the current board state.
+  this.Print = function () {
+    console.log(this.board.board_state);
+  };
+  
+  this.WriteToFile = function(folder) {
+    if (IsWebPage()) {
+      return;
+    }
+    
+    const fs = require('fs');
+    let dir = "./data/" + folder + "/";
+    if (!fs.existsSync(dir)){
+      fs.mkdirSync(dir);
+    }
+    
+    fs.writeFile(dir + Date.now() + "." + folder + ".json", JSON.stringify(this.board.board_state), function(err) {
+      if(err) {
+          return console.log(err);
+      }
+    });
+  };
+  
+  // Check if there is a winner on the board.
+  this.CheckWinner = function() {
+    let found_player_one = false;
+    let found_player_two = false;
+    let only_kings = true;
+    
+    for (let i = 0; i < this.board.board_height; ++i) {
+      for (let j = 0; j < this.board.board_width; ++j) {
+        let cell_value = this.board.board_state[i][j];
+        if (!found_player_one) {
+          found_player_one = cell_value.toLowerCase() == this.player_one.symbol;
+        }
+        if (!found_player_two) {
+          found_player_two = cell_value.toLowerCase() == this.player_two.symbol;
+        }
+        only_kings = only_kings && (cell_value == this.board.empty_space || cell_value == this.player_one.symbol.toUpperCase() || cell_value == this.player_two.symbol.toUpperCase());
+      }
+    }
+    
+    if (only_kings) {
+      this.turns_with_only_kings += 1;
+    }
+    
+    return this.turns_with_only_kings > this.turns_with_only_kings_threshold ? 'DRAW' :
+           found_player_one && found_player_two ? '' : 
+           !found_player_one && found_player_two ? this.player_two.symbol :
+           this.player_one.symbol;
+  };
+  
+  // Check if either player has peices on the opposite side of the map and turn them
+  // into KINGs.
+  this.CheckForKings = function() {
+    for (let i = 0; i < this.board.board_width; ++i) {
+      if (this.board.board_state[0][i] == this.player_two.symbol) {
+        this.board.board_state[0][i] = this.player_two.symbol.toUpperCase();
+      }
+      if (this.board.board_state[this.board.board_height - 1][i] == this.player_one.symbol) {
+        this.board.board_state[this.board.board_height - 1][i] = this.player_one.symbol.toUpperCase();
+      }
+    }
+  };
+  
+  this.AutoNextMove = function() {
+    let player_one_moves = this.board.FindValidMoves(this.player_one);
     if (player_one_moves.length > 0) {
-      this.MakeMove(player_one_moves[getRandomInt(player_one_moves.length)]);
+      this.board.MakeMove(this.player_one.SelectMove(player_one_moves));
     }
+    this.WriteToFile("white");
 
     this.CheckForKings();
-    this.Draw();
+    this.board.Draw(this.player_one, this.player_two);
     if (this.debug) {
       console.log('');
       this.Print();
     }
 
-    let player_two_moves = this.FindValidMoves(this.player_two);
+    let player_two_moves = this.board.FindValidMoves(this.player_two);
     if (player_two_moves.length > 0) {
-      this.MakeMove(player_two_moves[getRandomInt(player_two_moves.length)]);
+      this.board.MakeMove(this.player_two.SelectMove(player_two_moves));
     }
+    this.WriteToFile("black");
 
     this.CheckForKings();
-    this.Draw();
+    this.board.Draw(this.player_one, this.player_two);
 
     if (this.debug) {
       console.log('');
       this.Print();
     }
 
-    if (this.CheckWinner() == '') {
+    let winner = this.CheckWinner();
+    if (winner == '') {
+      let self = this;
       setTimeout(function() { self.AutoNextMove(); }, 0);
     }
-    else {
+    else if (IsWebPage()) {
       $('#result').text(this.CheckWinner());
+    }
+    else {
+      if (winner == 'w') {
+        
+      }
     }
   };
 }
 
-var b = new Board();
+var b = new Game();
 b.debug = true;
 b.Print();
 b.AutoNextMove();
