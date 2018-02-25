@@ -24,7 +24,7 @@ function Player(symbol, direction) {
 function Move(from, to, removes) {
   this.from = from;
   this.to = to;
-  this.removes = removes || null;
+  this.removes = removes || [];
 }
 
 function Board() {
@@ -52,6 +52,12 @@ function Board() {
     }
   };
   
+  this.Copy = function() {
+    let copy = new Board();
+    copy.board_state = this.board_state;
+    return copy;
+  };
+  
   // Make sure the potential move is on the board at all.
   this.IsMoveInBounds = function(to) {
     if (to[0] >= this.board_height || to[0] < 0) {
@@ -70,6 +76,57 @@ function Board() {
     return this.IsMoveInBounds(to) && this.board_state[to[0]][to[1]] == this.empty_space;
   };
   
+  // Find all valid moves for the given cell.
+  this.FindValidMoveForCell = function(player, i, j) {
+    let valid_moves = [];
+    
+    let checks = [
+      [player.direction, 1],
+      [player.direction, -1]
+    ];
+    // Add the KING movements.
+    if (this.board_state[i][j] == player.symbol.toUpperCase()) {
+      checks.push([-1 * player.direction, 1]);
+      checks.push([-1 * player.direction, -1]);
+    }
+    
+    if (this.board_state[i][j].toLowerCase() == player.symbol) {
+      for (let k = 0; k < checks.length; ++k) {
+        diag = [i+checks[k][0], j+checks[k][1]];
+        if (this.IsMoveValid(diag)) {
+          valid_moves.push(new Move([i,j], diag, null));
+        }
+        else if (this.IsMoveInBounds(diag)) {
+          diag_jump_symbol = this.board_state[diag[0]][diag[1]].toLowerCase();
+          if (diag_jump_symbol != this.empty_space && diag_jump_symbol != player.symbol) {
+            diag_jump = [i+2*checks[k][0],j+2*checks[k][1]];
+            if (this.IsMoveValid(diag_jump)) {
+              let diag_jump_move = new Move([i,j], diag_jump, [diag])
+              // Jump moves need to search for a second jump.
+              let potential_board = this.Copy();
+              potential_board.MakeMove(diag_jump_move);
+              // Check if a second or more jump is possible after the first.
+              let diag_jump_move_addtl = potential_board.FindValidMoveForCell(player, diag_jump[0], diag_jump[1])
+                .filter((value) => { return value.removes.length != 0 });
+              if (diag_jump_move_addtl.length > 0) {
+                // Add moves for each possible additional jumps.
+                for (let m = 0; m < diag_jump_move_addtl.length; ++m) {
+                  let diag_jump_move_add = new Move([i,j], diag_jump_move_addtl[m].to, diag_jump_move.removes.concat(diag_jump_move_addtl[m].removes));
+                  valid_moves.push(diag_jump_move_add);
+                }
+              }
+              // No second jump is possible so just add these.
+              else {
+                valid_moves.push(diag_jump_move);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return valid_moves;
+  };
   
   // Find all valid moves for the user.
   this.FindValidMoves = function(player) {
@@ -77,41 +134,13 @@ function Board() {
     
     for (let i = 0; i < this.board_height; ++i) {
       for (let j = 0; j < this.board_width; ++j) {
-        if (this.board_state[i][j] == this.empty_space) {
-          // Do nothing as there is nothing here.
-        }
-        else if (this.board_state[i][j].toLowerCase() == player.symbol){
-          let checks = [
-            [player.direction, 1],
-            [player.direction, -1]
-          ];
-          // Add the KING movements.
-          if (this.board_state[i][j] == player.symbol.toUpperCase()) {
-            checks.push([-1 * player.direction, 1]);
-            checks.push([-1 * player.direction, -1]);
-          }
-          
-          for (let k = 0; k < checks.length; ++k) {
-            diag = [i+checks[k][0], j+checks[k][1]];
-            if (this.IsMoveValid(diag)) {
-              valid_moves.push(new Move([i,j], diag, null));
-            }
-            else if (this.IsMoveInBounds(diag)) {
-              diag_jump_symbol = this.board_state[diag[0]][diag[1]].toLowerCase();
-              if (diag_jump_symbol != this.empty_space && diag_jump_symbol != player.symbol) {
-                diag_jump = [i+2*checks[k][0],j+2*checks[k][1]];
-                if (this.IsMoveValid(diag_jump)) {
-                  valid_moves.push(new Move([i,j], diag_jump, diag));
-                }
-              }
-            }
-          }
-        }
+        let new_moves = this.FindValidMoveForCell(player, i, j)
+        valid_moves = valid_moves.concat(new_moves);
       }
     }
     
     // Jump moves are required to be taken first.
-    var jump_moves = valid_moves.filter(m => {return m.removes != null});
+    var jump_moves = valid_moves.filter(m => {return m.removes.length > 0});
     if (jump_moves.length > 0) {
       return jump_moves
     }
@@ -128,11 +157,11 @@ function Board() {
     }
     this.board_state[move.from[0]][move.from[1]] = this.empty_space;
     this.board_state[move.to[0]][move.to[1]] = from_symbol;
-    if (move.removes != null) {
+    for (let i = 0; i < move.removes.length; ++i) {
       if (this.debug) {
-        console.log("Removing " + this.board_state[move.removes[0]][move.removes[1]] + " from " + move.removes + ".");
+        console.log("Removing " + this.board_state[move.removes[i][0]][move.removes[i][1]] + " from " + move.removes + ".");
       }
-      this.board_state[move.removes[0]][move.removes[1]] = this.empty_space;
+      this.board_state[move.removes[i][0]][move.removes[i][1]] = this.empty_space;
     }
   };
   
