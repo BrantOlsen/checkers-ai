@@ -207,7 +207,9 @@ function Game() {
   this.turns_with_only_kings = 0;
   this.turns_with_only_kings_threshold = 100;
   this.player_one = new Player('b', this.down);
+  this.player_one_board_states = [];
   this.player_two = new Player('w', this.up);
+  this.player_two_board_states = [];
   this.board = new Board();
   this.board.Init(this.player_one, this.player_two);
   
@@ -216,7 +218,7 @@ function Game() {
     console.log(this.board.board_state);
   };
   
-  this.WriteToFile = function(folder) {
+  this.WriteToFile = function(object_to_write, folder, identifier) {
     if (IsWebPage()) {
       return;
     }
@@ -227,7 +229,7 @@ function Game() {
       fs.mkdirSync(dir);
     }
     
-    fs.writeFile(dir + Date.now() + "." + folder + ".json", JSON.stringify(this.board.board_state), function(err) {
+    fs.writeFile(dir + Date.now() + "." + identifier + ".json", JSON.stringify(object_to_write), function(err) {
       if(err) {
           return console.log(err);
       }
@@ -281,7 +283,7 @@ function Game() {
     if (player_one_moves.length > 0) {
       this.board.MakeMove(this.player_one.SelectMove(player_one_moves));
     }
-    this.WriteToFile("white");
+    this.player_one_board_states.push(this.board.Copy());
 
     this.CheckForKings();
     this.board.Draw(this.player_one, this.player_two);
@@ -294,7 +296,7 @@ function Game() {
     if (player_two_moves.length > 0) {
       this.board.MakeMove(this.player_two.SelectMove(player_two_moves));
     }
-    this.WriteToFile("black");
+    this.player_two_board_states.push(this.board.Copy());
 
     this.CheckForKings();
     this.board.Draw(this.player_one, this.player_two);
@@ -310,17 +312,20 @@ function Game() {
       setTimeout(function() { self.AutoNextMove(); }, 0);
     }
     else if (IsWebPage()) {
-      $('#result').text(this.CheckWinner());
+      $('#result').text(winner);
     }
     else {
-      if (winner == 'w') {
-        
-      }
+      this.WriteToFile(this.player_one_board_states, winner == this.player_one.symbol ? 'win' : 'lose', this.player_one.symbol);
+      this.WriteToFile(this.player_two_board_states, winner == this.player_two.symbol ? 'win' : 'lose', this.player_two.symbol);
+      console.log(winner);
     }
   };
 }
 
-var b = new Game();
-b.debug = true;
-b.Print();
-b.AutoNextMove();
+let num_of_games_to_play = 50;
+for (let i = 0; i < num_of_games_to_play; ++i) {
+  var b = new Game();
+  b.debug = false;
+  //b.Print();
+  b.AutoNextMove();
+}
