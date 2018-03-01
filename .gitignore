@@ -2,3 +2,5 @@ data/lose/1519596141255.w.json
 data/lose/
 data/win/
 __pycache__/
+.idea/
+logs/
