@@ -28,11 +28,9 @@ parser.add_argument('--log_dir', default='./logs', type=str, help='directory to 
 
 def main(argv):
   args = parser.parse_args(argv[1:])
-  #if tf.gfile.Exists(args.log_dir):
-  # tf.gfile.DeleteRecursively(args.log_dir)
-  #tf.gfile.MakeDirs(args.log_dir)
-  
-  
+  if !tf.gfile.Exists(args.log_dir):
+    tf.gfile.MakeDirs(args.log_dir)
+   
   # Fetch the data
   (train_x, train_y), (test_x, test_y) = checkers_data.load_data()
 
@@ -48,22 +46,20 @@ def main(argv):
       # Two hidden layers of 10 nodes each.
       hidden_units=[8, 8],
       # The model must choose between 3 classes.
-      n_classes=3)
+      n_classes=3,
+      model_dir=args.log_dir)
 
-  # Train the Model.
-  classifier.train(
-      input_fn=lambda:checkers_data.train_input_fn(train_x, train_y, args.batch_size),
-      steps=args.train_steps)
+  for i in range(1,3):
+    # Train the Model.
+    classifier.train(
+        input_fn=lambda:checkers_data.train_input_fn(train_x, train_y, args.batch_size),
+        steps=args.train_steps)
 
-  # Evaluate the model.
-  eval_result = classifier.evaluate(
-      input_fn=lambda:checkers_data.eval_input_fn(test_x, test_y, args.batch_size))
-  print (eval_result)
-  tf.summary.scalar('accuracy', eval_result.get('accuracy'))
-  tf.summary.scalar('loss', eval_result.get('loss'))
-  print('\nTest set accuracy: {:0.3f}\n'.format(eval_result.get('accuracy')))
-  
-
+    # Evaluate the model.
+    eval_result = classifier.evaluate(
+        input_fn=lambda:checkers_data.eval_input_fn(test_x, test_y, args.batch_size))
+    print (eval_result)
+    print('\nTest set accuracy: {:0.3f}\n'.format(eval_result.get('accuracy')))
 
 tf.logging.set_verbosity(tf.logging.INFO)
 tf.app.run(main)
