@@ -23,66 +23,47 @@ import checkers_data
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', default=100, type=int, help='batch size')
-parser.add_argument('--train_steps', default=1000, type=int,
-                    help='number of training steps')
+parser.add_argument('--train_steps', default=1000, type=int, help='number of training steps')
+parser.add_argument('--log_dir', default='./logs', type=str, help='directory to put logs for TensorBoard')
 
 def main(argv):
-    args = parser.parse_args(argv[1:])
+  args = parser.parse_args(argv[1:])
+  #if tf.gfile.Exists(args.log_dir):
+  # tf.gfile.DeleteRecursively(args.log_dir)
+  #tf.gfile.MakeDirs(args.log_dir)
+  
+  
+  # Fetch the data
+  (train_x, train_y), (test_x, test_y) = checkers_data.load_data()
 
-    # Fetch the data
-    (train_x, train_y), (test_x, test_y) = checkers_data.load_data()
+  # Feature columns describe how to use the input.
+  my_feature_columns = []
+  for key in train_x.keys():
+      my_feature_columns.append(tf.feature_column.numeric_column(key=key))
 
-    # Feature columns describe how to use the input.
-    my_feature_columns = []
-    for key in train_x.keys():
-        my_feature_columns.append(tf.feature_column.numeric_column(key=key))
+  
+  # Build 2 hidden layer DNN with 10, 10 units respectively.
+  classifier = tf.estimator.DNNClassifier(
+      feature_columns=my_feature_columns,
+      # Two hidden layers of 10 nodes each.
+      hidden_units=[8, 8],
+      # The model must choose between 3 classes.
+      n_classes=3)
 
-    # Build 2 hidden layer DNN with 10, 10 units respectively.
-    classifier = tf.estimator.DNNClassifier(
-        feature_columns=my_feature_columns,
-        # Two hidden layers of 10 nodes each.
-        hidden_units=[8, 8],
-        # The model must choose between 3 classes.
-        n_classes=3)
+  # Train the Model.
+  classifier.train(
+      input_fn=lambda:checkers_data.train_input_fn(train_x, train_y, args.batch_size),
+      steps=args.train_steps)
 
-    # Train the Model.
-    classifier.train(
-        input_fn=lambda:checkers_data.train_input_fn(train_x, train_y,
-                                                 args.batch_size),
-        steps=args.train_steps)
+  # Evaluate the model.
+  eval_result = classifier.evaluate(
+      input_fn=lambda:checkers_data.eval_input_fn(test_x, test_y, args.batch_size))
+  print (eval_result)
+  tf.summary.scalar('accuracy', eval_result.get('accuracy'))
+  tf.summary.scalar('loss', eval_result.get('loss'))
+  print('\nTest set accuracy: {:0.3f}\n'.format(eval_result.get('accuracy')))
+  
 
-    # Evaluate the model.
-    eval_result = classifier.evaluate(
-        input_fn=lambda:checkers_data.eval_input_fn(test_x, test_y,
-                                                args.batch_size))
 
-    print('\nTest set accuracy: {accuracy:0.3f}\n'.format(**eval_result))
-
-    """ Will be used later when predictions matter.
-    # Generate predictions from the model
-    expected = ['Setosa', 'Versicolor', 'Virginica']
-    predict_x = {
-        'SepalLength': [5.1, 5.9, 6.9],
-        'SepalWidth': [3.3, 3.0, 3.1],
-        'PetalLength': [1.7, 4.2, 5.4],
-        'PetalWidth': [0.5, 1.5, 2.1],
-    }
-
-    predictions = classifier.predict(
-        input_fn=lambda:checkers_data.eval_input_fn(predict_x,
-                                                labels=None,
-                                                batch_size=args.batch_size))
-
-    for pred_dict, expec in zip(predictions, expected):
-        template = ('\nPrediction is "{}" ({:.1f}%), expected "{}"')
-
-        class_id = pred_dict['class_ids'][0]
-        probability = pred_dict['probabilities'][class_id]
-
-        print(template.format(iris_data.SPECIES[class_id],
-                              100 * probability, expec))
-    """
-
-if __name__ == '__main__':
-    tf.logging.set_verbosity(tf.logging.INFO)
-    tf.app.run(main)
+tf.logging.set_verbosity(tf.logging.INFO)
+tf.app.run(main)
