@@ -4,3 +4,6 @@ data/win/
 __pycache__/
 .idea/
 logs/
+index.js.log
+predict.json
+predictions.json

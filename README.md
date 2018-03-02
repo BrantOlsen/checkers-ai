@@ -9,3 +9,4 @@
 
 **TODO**
 - Fix a bug in the move finder.
+- Use the created model to predict moves for the AI.

@@ -12,12 +12,57 @@ function Player(symbol, direction) {
   this.symbol = symbol;
   this.direction = direction;
   
-  this.SelectMove = function(valid_moves) {
+  this.SelectMove = function(valid_moves, board) {
     if (valid_moves.length == 0) {
       return null;
     }
     
     return valid_moves[getRandomInt(valid_moves.length)]
+  };
+}
+
+function SmartPlayer(symbol, direction) {
+  this.symbol = symbol;
+  this.direction = direction;
+  
+  this.SelectMove = function(valid_moves, board) {
+    if (valid_moves.length == 0) {
+      return null;
+    }
+    
+    var board_states = [];
+    for (let i = 0; i < valid_moves.length; ++i) {
+      (function(index) {
+        let new_board = board.Copy();
+        new_board.MakeMove(valid_moves[i]);
+        board_states.push(new_board.board_state);
+        console.log(new_board.board_state);
+      })(i);
+    }
+         
+    const fs = require('fs');
+    const ex = require('child_process');
+    fs.writeFileSync('./predict.json', JSON.stringify(board_states));
+    ex.execSync('python train.py --predict ./predict.json');
+    var predictions = JSON.parse(fs.readFileSync('./predictions.json'));
+    // [{"class_id": 0, "probability": 1.0}, {"class_id": 0, "probability": 1.0}, {"class_id": 0, "probability": 1.0}, {"class_id": 0, "probability": 1.0}, {"class_id": 0, "probability": 1.0}, {"class_id": 0, "probability": 1.0}, {"class_id": 0, "probability": 1.0}, {"class_id": 0, "probability": 1.0}, {"class_id": 0, "probability": 1.0}, {"class_id": 0, "probability": 1.0}, {"class_id": 0, "probability": 1.0}, {"class_id": 0, "probability": 1.0}, {"class_id": 0, "probability": 1.0}, {"class_id": 0, "probability": 1.0}]
+    var index_to_use = 0;
+    var max_prob = 0;
+    var using_losing_move = true;
+    for (let i = 0; i < predictions.length; ++i) {
+      if (predictions[i].class_id == 1 && (max_prob < predictions[i].probability || using_losing_move)) {
+        index_to_use = i;
+        max_prob = predictions[i].probability;
+        using_losing_move = false;
+      }
+      else if (predictions[i].class_id == 0 && max_prob > predictions[i].probability && using_losing_move) {
+        index_to_use = i;
+        max_prob = predictions[i].probability;
+      }
+    }
+    console.log(predictions);
+    console.log(predictions[index_to_use]);
+    return valid_moves[index_to_use]
   };
 }
 
@@ -208,7 +253,7 @@ function Game() {
   this.turns_with_only_kings_threshold = 100;
   this.player_one = new Player('b', this.down);
   this.player_one_board_states = [];
-  this.player_two = new Player('w', this.up);
+  this.player_two = new SmartPlayer('w', this.up);
   this.player_two_board_states = [];
   this.board = new Board();
   this.board.Init(this.player_one, this.player_two);
@@ -281,7 +326,7 @@ function Game() {
   this.AutoNextMove = function() {
     let player_one_moves = this.board.FindValidMoves(this.player_one);
     if (player_one_moves.length > 0) {
-      this.board.MakeMove(this.player_one.SelectMove(player_one_moves));
+      this.board.MakeMove(this.player_one.SelectMove(player_one_moves, this.board));
     }
     this.player_one_board_states.push(this.board.Copy());
 
@@ -294,7 +339,7 @@ function Game() {
 
     let player_two_moves = this.board.FindValidMoves(this.player_two);
     if (player_two_moves.length > 0) {
-      this.board.MakeMove(this.player_two.SelectMove(player_two_moves));
+      this.board.MakeMove(this.player_two.SelectMove(player_two_moves, this.board));
     }
     this.player_two_board_states.push(this.board.Copy());
 
@@ -322,7 +367,7 @@ function Game() {
   };
 }
 
-let num_of_games_to_play = 50;
+let num_of_games_to_play = 1;
 for (let i = 0; i < num_of_games_to_play; ++i) {
   var b = new Game();
   b.debug = false;
