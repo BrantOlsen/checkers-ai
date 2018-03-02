@@ -29,6 +29,9 @@ function SmartPlayer(symbol, direction) {
     if (valid_moves.length == 0) {
       return null;
     }
+    else if (valid_moves.length == 1) {
+      return valid_moves[0];
+    }
     
     var board_states = [];
     console.log("Orig Board:");
@@ -255,7 +258,7 @@ function Game() {
   this.down = 1;
   this.up = -1;
   this.turns_with_only_kings = 0;
-  this.turns_with_only_kings_threshold = 100;
+  this.turns_with_only_kings_threshold = 25;
   this.player_one = new Player('b', this.down);
   this.player_one_board_states = [];
   this.player_two = new SmartPlayer('w', this.up);
