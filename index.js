@@ -31,11 +31,14 @@ function SmartPlayer(symbol, direction) {
     }
     
     var board_states = [];
+    console.log("Orig Board:");
+    console.log(board.board_state);
     for (let i = 0; i < valid_moves.length; ++i) {
       (function(index) {
         let new_board = board.Copy();
         new_board.MakeMove(valid_moves[i]);
         board_states.push(new_board.board_state);
+        console.log("New Board (" + i + "):");
         console.log(new_board.board_state);
       })(i);
     }
@@ -99,7 +102,9 @@ function Board() {
   
   this.Copy = function() {
     let copy = new Board();
-    copy.board_state = this.board_state;
+    copy.board_state = this.board_state.map(function(arr) {
+        return arr.slice();
+    });
     return copy;
   };
   
